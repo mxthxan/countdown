@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Zap, Wifi, AlertTriangle } from 'lucide-react';
 
-// --- FIREBASE IMPORTS (Local and SDK) ---
-// CONSOLIDATED: All Firebase setup is now contained in this file.
+// --- FIREBASE IMPORTS (All consolidated into one file) ---
 import { initializeApp } from "firebase/app";
 import { 
   getDatabase, 
@@ -15,7 +14,7 @@ import {
 
 
 // --- GLOBAL FIREBASE INITIALIZATION ---
-// Using the configuration details provided by the user previously
+// This code is now placed directly in App.tsx to avoid the "Could not resolve" error.
 const firebaseConfig = {
   apiKey: "AIzaSyDHsn9n-tZUZQ_ksu7JW0UFHCmEL_6GTNA",
   authDomain: "countdown1-73932.firebaseapp.com",
