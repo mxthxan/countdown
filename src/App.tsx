@@ -72,7 +72,6 @@ const App = () => {
 
   // --- 1. REALTIME DATABASE LISTENER (Cross-device sync) ---
   useEffect(() => {
-    // Use the imported database instance
     const countdownRef = ref(database, 'countdown-state');
     
     // Set up the real-time listener
