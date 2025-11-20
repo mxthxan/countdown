@@ -1,9 +1,7 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getDatabase, Database } from "firebase/database"; // <-- Import getDatabase
-// NOTE: getAnalytics is typically used for tracking but not needed for basic data access
+import { getDatabase, Database } from "firebase/database";
 
-// Your web app's Firebase configuration (using the details you provided)
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDHsn9n-tZUZQ_ksu7JW0UFHCmEL_6GTNA",
   authDomain: "countdown1-73932.firebaseapp.com",

@@ -1,37 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Zap, Wifi, AlertTriangle } from 'lucide-react';
 
-// --- FIREBASE IMPORTS (All consolidated into one file) ---
-import { initializeApp } from "firebase/app";
+// --- FIREBASE IMPORTS (from external firebase.ts file) ---
 import { 
-  getDatabase, 
   ref, 
   onValue, 
   set, 
-  remove, 
-  Database 
+  remove
 } from 'firebase/database';
-
-
-// --- GLOBAL FIREBASE INITIALIZATION ---
-// This code is now placed directly in App.tsx to avoid the "Could not resolve" error.
-const firebaseConfig = {
-  apiKey: "AIzaSyDHsn9n-tZUZQ_ksu7JW0UFHCmEL_6GTNA",
-  authDomain: "countdown1-73932.firebaseapp.com",
-  databaseURL: "https://countdown1-73932-default-rtdb.firebaseio.com",
-  projectId: "countdown1-73932",
-  storageBucket: "countdown1-73932.firebasestorage.app",
-  messagingSenderId: "913943646076",
-  appId: "1:913943646076:web:94bdaaa73964cee2c89ef9",
-  measurementId: "G-98S26PBQBL"
-};
-
-// Initialize Firebase App
-const app = initializeApp(firebaseConfig);
-
-// Initialize Realtime Database instance
-const database: Database = getDatabase(app); 
-// --- END GLOBAL FIREBASE INITIALIZATION ---
+import { database } from './firebase'; // Import the database instance
 
 
 // --- TYPE DEFINITIONS ---
@@ -78,7 +55,7 @@ const App = () => {
 
   // --- 1. REALTIME DATABASE LISTENER (Cross-device sync) ---
   useEffect(() => {
-    // The database object is ready for use
+    // Use the imported database instance
     const countdownRef = ref(database, 'countdown-state');
     
     // Set up the real-time listener
@@ -209,7 +186,7 @@ const App = () => {
       )}
 
       {/* CSS STYLES (Inline for single-file mandate) */}
-      <style jsx>{`
+      <style>{`
         .rain-drop {
           position: absolute;
           width: 2px;
