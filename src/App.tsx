@@ -1,24 +1,91 @@
 import { useEffect, useState } from 'react';
-import { Zap, Wifi } from 'lucide-react';
-import { database } from './firebase';
-import { ref, onValue, set, remove } from 'firebase/database';
+import { Zap, Wifi, AlertTriangle } from 'lucide-react';
 
-function App() {
-  const [timeLeft, setTimeLeft] = useState({
+// --- FIREBASE IMPORTS (Local and SDK) ---
+// CONSOLIDATED: All Firebase setup is now contained in this file.
+import { initializeApp } from "firebase/app";
+import { 
+  getDatabase, 
+  ref, 
+  onValue, 
+  set, 
+  remove, 
+  Database 
+} from 'firebase/database';
+
+
+// --- GLOBAL FIREBASE INITIALIZATION ---
+// Using the configuration details provided by the user previously
+const firebaseConfig = {
+  apiKey: "AIzaSyDHsn9n-tZUZQ_ksu7JW0UFHCmEL_6GTNA",
+  authDomain: "countdown1-73932.firebaseapp.com",
+  databaseURL: "https://countdown1-73932-default-rtdb.firebaseio.com",
+  projectId: "countdown1-73932",
+  storageBucket: "countdown1-73932.firebasestorage.app",
+  messagingSenderId: "913943646076",
+  appId: "1:913943646076:web:94bdaaa73964cee2c89ef9",
+  measurementId: "G-98S26PBQBL"
+};
+
+// Initialize Firebase App
+const app = initializeApp(firebaseConfig);
+
+// Initialize Realtime Database instance
+const database: Database = getDatabase(app); 
+// --- END GLOBAL FIREBASE INITIALIZATION ---
+
+
+// --- TYPE DEFINITIONS ---
+interface TimeState {
+  hours: number;
+  minutes: number;
+  seconds: number;
+}
+
+interface RealtimeData {
+    endTime: number; // UTC timestamp in milliseconds
+}
+
+// --- TIME BLOCK COMPONENT ---
+function TimeBlock({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative">
+        <div className="text-8xl md:text-9xl lg:text-10xl font-black font-mono text-lime-400 drop-shadow-[0_0_30px_rgba(163,230,53,0.9)] tracking-tighter">
+          {value}
+        </div>
+        <div className="absolute inset-0 text-8xl md:text-9xl lg:text-10xl font-black font-mono text-lime-400/20 blur-sm tracking-tighter">
+          {value}
+        </div>
+      </div>
+      <span className="text-xs md:text-sm font-mono text-cyan-400/70 tracking-widest mt-2">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+
+// --- MAIN APP COMPONENT ---
+const App = () => {
+  const [timeLeft, setTimeLeft] = useState<TimeState>({
     hours: 24,
     minutes: 0,
     seconds: 0,
   });
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Listen to Firebase for real-time updates
+  // --- 1. REALTIME DATABASE LISTENER (Cross-device sync) ---
   useEffect(() => {
+    // The database object is ready for use
     const countdownRef = ref(database, 'countdown-state');
     
+    // Set up the real-time listener
     const unsubscribe = onValue(countdownRef, (snapshot) => {
       setIsLoading(false);
-      const data = snapshot.val();
+      const data = snapshot.val() as RealtimeData | null;
       
       if (data && data.endTime) {
         const endTime = data.endTime;
@@ -38,16 +105,22 @@ function App() {
           setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
         }
       } else {
-        // No active countdown
+        // No active countdown in the database
         setIsRunning(false);
-        setTimeLeft({ hours: 24, minutes: 0, seconds: 0 });
+        // Only reset the visual state to 24 hours if it's currently at 0
+        if (timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0) {
+           setTimeLeft({ hours: 24, minutes: 0, seconds: 0 });
+        }
       }
+    }, (error) => {
+        console.error("Realtime Database listen failed:", error);
+        setErrorMessage(`Realtime Database sync failed: ${error.message}. Check your security rules.`);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Local countdown timer for smooth updates
+  // --- 2. LOCAL COUNTDOWN TIMER (Smooth client-side updates) ---
   useEffect(() => {
     if (!isRunning) return;
 
@@ -65,10 +138,14 @@ function App() {
           minutes = 59;
           seconds = 59;
         } else {
+          // Countdown reached 0 locally.
           setIsRunning(false);
-          // Clear Firebase when countdown finishes
+          
+          // Clear Realtime Database state (This triggers the sync for others)
           const countdownRef = ref(database, 'countdown-state');
           remove(countdownRef).catch(console.error);
+          
+          return { hours: 0, minutes: 0, seconds: 0 };
         }
 
         return { hours, minutes, seconds };
@@ -80,34 +157,35 @@ function App() {
 
   const formatTime = (num: number) => num.toString().padStart(2, '0');
 
+  // --- 3. START/STOP HANDLER ---
   const handleStartCountdown = async () => {
     const countdownRef = ref(database, 'countdown-state');
     
     if (!isRunning) {
-      // Calculate end time (24 hours from now)
+      // Start countdown: calculate end time (24 hours from now)
       const endTime = Date.now() + (24 * 60 * 60 * 1000);
       
       try {
         await set(countdownRef, { endTime });
-        setTimeLeft({ hours: 24, minutes: 0, seconds: 0 });
-        setIsRunning(true);
+        // The onValue listener handles state updates
       } catch (error) {
         console.error('Failed to start countdown:', error);
-        alert('Failed to start countdown. Please try again.');
+        setErrorMessage('ERROR: Failed to start countdown. Permissions denied?');
       }
     } else {
-      // Stop the countdown
+      // Stop countdown: remove document
       try {
         await remove(countdownRef);
-        setIsRunning(false);
-        setTimeLeft({ hours: 24, minutes: 0, seconds: 0 });
+        // The onValue listener handles state updates
       } catch (error) {
         console.error('Failed to stop countdown:', error);
-        alert('Failed to stop countdown. Please try again.');
+        setErrorMessage('ERROR: Failed to stop countdown. Permissions denied?');
       }
     }
   };
 
+
+  // --- RENDERING ---
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -120,6 +198,156 @@ function App() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
+      {/* Error Message Display (replaces alert()) */}
+      {errorMessage && (
+        <div className="absolute top-0 left-0 right-0 z-50 bg-red-800/90 text-white p-4 flex items-center justify-center font-mono">
+          <AlertTriangle className="w-5 h-5 mr-2" />
+          {errorMessage}
+          <button onClick={() => setErrorMessage(null)} className="ml-4 text-xs underline">
+            [DISMISS]
+          </button>
+        </div>
+      )}
+
+      {/* CSS STYLES (Inline for single-file mandate) */}
+      <style jsx>{`
+        .rain-drop {
+          position: absolute;
+          width: 2px;
+          height: 20px;
+          background: linear-gradient(transparent, #22d3ee);
+          animation: rain-fall linear infinite;
+        }
+
+        @keyframes rain-fall {
+          to {
+            transform: translateY(100vh);
+          }
+        }
+
+        .scanlines {
+          position: absolute;
+          inset: 0;
+          background: repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 0, 0, 0.1) 2px,
+            rgba(0, 0, 0, 0.1) 4px
+          );
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        .cyber-grid {
+          position: absolute;
+          inset: 0;
+          background-image: 
+            linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+          background-size: 50px 50px;
+          pointer-events: none;
+        }
+
+        .cyber-divider {
+          height: 2px;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            #22d3ee 50%,
+            transparent
+          );
+        }
+
+        .cyber-button {
+          position: relative;
+          padding: 1rem 2rem;
+          background: linear-gradient(135deg, #0e7490 0%, #ec4899 100%);
+          border: 2px solid #22d3ee;
+          color: white;
+          font-family: monospace;
+          overflow: hidden;
+          transition: all 0.3s;
+        }
+
+        .cyber-button::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, #ec4899 0%, #a3e635 100%);
+          opacity: 0;
+          transition: opacity 0.3s;
+        }
+
+        .cyber-button:hover::before {
+          opacity: 1;
+        }
+
+        .cyber-button:hover {
+          box-shadow: 0 0 30px rgba(34, 211, 238, 0.6);
+          transform: translateY(-2px);
+        }
+
+        .hologram-frame {
+          animation: hologram-flicker 2s infinite;
+        }
+
+        @keyframes hologram-flicker {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.95; }
+        }
+
+        @keyframes scan {
+          from {
+            top: 0;
+          }
+          to {
+            top: 100%;
+          }
+        }
+
+        .animate-scan {
+          animation: scan 2s linear infinite;
+        }
+
+        .glitch-text {
+          animation: glitch 3s infinite;
+        }
+
+        .glitch-title {
+          animation: glitch 5s infinite;
+        }
+
+        @keyframes glitch {
+          0%, 90%, 100% {
+            transform: translate(0);
+          }
+          92% {
+            transform: translate(-2px, 2px);
+          }
+          94% {
+            transform: translate(2px, -2px);
+          }
+          96% {
+            transform: translate(-2px, -2px);
+          }
+          98% {
+            transform: translate(2px, 2px);
+          }
+        }
+
+        .poster-container {
+          position: relative;
+          transform: perspective(1000px) rotateX(2deg) rotateY(-2deg);
+          transition: transform 0.3s;
+        }
+
+        .poster-container:hover {
+          transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1.02);
+        }
+      `}</style>
+      {/* END CSS STYLES */}
+
       <div className="rain-container">
         {[...Array(50)].map((_, i) => (
           <div
@@ -276,161 +504,6 @@ function App() {
           </div>
         </footer>
       </div>
-
-      <style jsx>{`
-        .rain-drop {
-          position: absolute;
-          width: 2px;
-          height: 20px;
-          background: linear-gradient(transparent, #22d3ee);
-          animation: rain-fall linear infinite;
-        }
-
-        @keyframes rain-fall {
-          to {
-            transform: translateY(100vh);
-          }
-        }
-
-        .scanlines {
-          position: absolute;
-          inset: 0;
-          background: repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(0, 0, 0, 0.1) 2px,
-            rgba(0, 0, 0, 0.1) 4px
-          );
-          pointer-events: none;
-          z-index: 1;
-        }
-
-        .cyber-grid {
-          position: absolute;
-          inset: 0;
-          background-image: 
-            linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
-          background-size: 50px 50px;
-          pointer-events: none;
-        }
-
-        .cyber-divider {
-          height: 2px;
-          background: linear-gradient(
-            90deg,
-            transparent,
-            #22d3ee 50%,
-            transparent
-          );
-        }
-
-        .cyber-button {
-          position: relative;
-          padding: 1rem 2rem;
-          background: linear-gradient(135deg, #0e7490 0%, #ec4899 100%);
-          border: 2px solid #22d3ee;
-          color: white;
-          font-family: monospace;
-          overflow: hidden;
-          transition: all 0.3s;
-        }
-
-        .cyber-button::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, #ec4899 0%, #a3e635 100%);
-          opacity: 0;
-          transition: opacity 0.3s;
-        }
-
-        .cyber-button:hover::before {
-          opacity: 1;
-        }
-
-        .cyber-button:hover {
-          box-shadow: 0 0 30px rgba(34, 211, 238, 0.6);
-          transform: translateY(-2px);
-        }
-
-        .hologram-frame {
-          animation: hologram-flicker 2s infinite;
-        }
-
-        @keyframes hologram-flicker {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.95; }
-        }
-
-        @keyframes scan {
-          from {
-            top: 0;
-          }
-          to {
-            top: 100%;
-          }
-        }
-
-        .animate-scan {
-          animation: scan 2s linear infinite;
-        }
-
-        .glitch-text {
-          animation: glitch 3s infinite;
-        }
-
-        .glitch-title {
-          animation: glitch 5s infinite;
-        }
-
-        @keyframes glitch {
-          0%, 90%, 100% {
-            transform: translate(0);
-          }
-          92% {
-            transform: translate(-2px, 2px);
-          }
-          94% {
-            transform: translate(2px, -2px);
-          }
-          96% {
-            transform: translate(-2px, -2px);
-          }
-          98% {
-            transform: translate(2px, 2px);
-          }
-        }
-
-        .poster-container {
-          position: relative;
-          transform: perspective(1000px) rotateX(2deg) rotateY(-2deg);
-          transition: transform 0.3s;
-        }
-
-        .poster-container:hover {
-          transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1.02);
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function TimeBlock({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative">
-        <div className="text-8xl md:text-9xl lg:text-10xl font-black font-mono text-lime-400 drop-shadow-[0_0_30px_rgba(163,230,53,0.9)] tracking-tighter">
-          {value}
-        </div>
-        <div className="absolute inset-0 text-8xl md:text-9xl lg:text-10xl font-black font-mono text-lime-400/20 blur-sm tracking-tighter">
-          {value}
-        </div>
-      </div>
-      <span className="text-xs md:text-sm font-mono text-cyan-400/70 tracking-widest mt-2">
-        {label}
-      </span>
     </div>
   );
 }

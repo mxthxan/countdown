@@ -1,11 +1,9 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getDatabase, Database } from "firebase/database"; // <-- Import getDatabase
+// NOTE: getAnalytics is typically used for tracking but not needed for basic data access
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Your web app's Firebase configuration (using the details you provided)
 const firebaseConfig = {
   apiKey: "AIzaSyDHsn9n-tZUZQ_ksu7JW0UFHCmEL_6GTNA",
   authDomain: "countdown1-73932.firebaseapp.com",
@@ -17,6 +15,8 @@ const firebaseConfig = {
   measurementId: "G-98S26PBQBL"
 };
 
-// Initialize Firebase
+// Initialize Firebase App
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
+// Initialize and EXPORT the Realtime Database instance
+export const database: Database = getDatabase(app);
