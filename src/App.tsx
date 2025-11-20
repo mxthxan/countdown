@@ -1,14 +1,31 @@
 import { useEffect, useState } from 'react';
 import { Zap, Wifi, AlertTriangle } from 'lucide-react';
 
-// --- FIREBASE IMPORTS (from external firebase.ts file) ---
+// --- FIREBASE IMPORTS ---
+import { initializeApp } from "firebase/app";
 import { 
+  getDatabase, 
   ref, 
   onValue, 
   set, 
-  remove
+  remove,
+  Database 
 } from 'firebase/database';
-import { database } from './firebase'; // Import the database instance
+
+// --- FIREBASE INITIALIZATION ---
+const firebaseConfig = {
+  apiKey: "AIzaSyDHsn9n-tZUZQ_ksu7JW0UFHCmEL_6GTNA",
+  authDomain: "countdown1-73932.firebaseapp.com",
+  databaseURL: "https://countdown1-73932-default-rtdb.firebaseio.com",
+  projectId: "countdown1-73932",
+  storageBucket: "countdown1-73932.firebasestorage.app",
+  messagingSenderId: "913943646076",
+  appId: "1:913943646076:web:94bdaaa73964cee2c89ef9",
+  measurementId: "G-98S26PBQBL"
+};
+
+const app = initializeApp(firebaseConfig);
+const database: Database = getDatabase(app);
 
 
 // --- TYPE DEFINITIONS ---
